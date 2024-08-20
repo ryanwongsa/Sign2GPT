@@ -2,6 +2,8 @@
 
 Implementation of Sign2GPT.
 
+[20/08/2024] Added pretraining head component
+
 [20/08/2024] Added pretraining loss function
 
 [19/07/2024] Added missing transformer encoder modules.
