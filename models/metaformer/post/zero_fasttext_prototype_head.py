@@ -20,8 +20,8 @@ class HeadModel(nn.Module):
         emb_pkl_dir,
         trainable_emb,
         dropout=0.5,
-        class_temperature=0.07,
-        time_temperature=0.07,
+        class_temperature=0.1,
+        time_temperature=0.1,
         dynamic_time_temperatures=False,
         dynamic_class_temperatures=False,
     ):
@@ -49,7 +49,7 @@ class HeadModel(nn.Module):
             idist.barrier()
         ft = fasttext.load_model(f"cc.{emb_lang}.300.bin")
 
-        dict_processed_words = read_pickle(emb_pkl_dir)
+        dict_processed_words = read_pickle(emb_pkl_dir) # DICTIONARY CONTAINING THE {<PSUEDOGLOSS>:<ID>}
         dict_lem_to_id = dict_processed_words["dict_lem_to_id"]
         vector = torch.zeros((len(dict_lem_to_id), 300))
         for key, value in dict_lem_to_id.items():
