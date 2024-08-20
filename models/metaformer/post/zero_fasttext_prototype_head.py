@@ -109,7 +109,5 @@ class HeadModel(nn.Module):
             "time_res": time_res,
             "softmax_scores": softmax_scores,
             "logits": logits,
-            "V": V,
-            "vocab_embedding": self.vocab_embedding,
             "mask": mask,
         }
