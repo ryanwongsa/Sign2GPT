@@ -63,3 +63,18 @@ def get_sign_encoder():
         },
     }
     return model_name, sign_model_params, dim_model
+
+def get_proto_head_params():
+    post_params = {
+        "in_dim": dim_model,
+        "hidden_dim": 300,
+        "num_classes": 2533,
+        "dropout": 0.2,
+        "class_temperature": 0.1,
+        "time_temperature": 0.1,
+        "dynamic_time_temperatures": False,
+        "dynamic_class_temperatures": False,
+        "emb_lang": "de",
+        "emb_pkl_dir": f"data/phoenix2014t/processed_words.phx_pkl",
+        "trainable_emb": True,
+    }
