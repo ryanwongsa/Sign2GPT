@@ -24,20 +24,20 @@ import torch.utils.checkpoint
 from torch import nn
 from torch.nn import CrossEntropyLoss
 
-from ...activations import ACT2FN
-from ...modeling_outputs import (
+from transformers.activations import ACT2FN
+from transformers.modeling_outputs import (
     BaseModelOutputWithPastAndCrossAttentions,
     CausalLMOutputWithCrossAttentions,
 )
-from ...modeling_utils import PreTrainedModel
-from ...utils import (
+from transformers.modeling_utils import PreTrainedModel
+from transformers.utils import (
     add_code_sample_docstrings,
     add_start_docstrings,
     add_start_docstrings_to_model_forward,
     logging,
 )
-from .configuration_xglm import XGLMConfig
-
+from transformers.models.xglm.configuration_xglm import XGLMConfig
+from models.model_utils.clamp_utils import Clamp
 
 logger = logging.get_logger(__name__)
 
@@ -129,6 +129,7 @@ def _make_causal_mask(
     Make causal mask used for bi-directional self-attention.
     """
     bsz, tgt_len = input_ids_shape
+    # mask = torch.full((tgt_len, tgt_len), torch.tensor(torch.finfo(dtype).min))
     mask = torch.full((tgt_len, tgt_len), torch.tensor(torch.finfo(dtype).min))
     mask_cond = torch.arange(mask.size(-1))
     mask.masked_fill_(mask_cond < (mask_cond + 1).view(mask.size(-1), 1), 0)
@@ -315,6 +316,73 @@ class XGLMAttention(nn.Module):
         self.q_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
         self.out_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
 
+        self.w_gate = False
+        self.w_lora = False
+        self.embed_dim = embed_dim
+
+    def init_adaptor_gate(self, gate_type, lora_rank, lora_drop, idx, lora_a):
+        self.w_gate = True
+
+        self.adaptor_gate = torch.nn.Parameter(torch.zeros(1, self.num_heads, 1, 1))
+        self.gate_type = gate_type
+
+        self.adaptor_lora_wq_l1 = torch.nn.Linear(self.embed_dim, lora_rank, bias=False)
+        self.adaptor_lora_wq_l2 = torch.nn.Linear(lora_rank, self.embed_dim, bias=False)
+
+        self.adaptor_lora_wk_l1 = torch.nn.Linear(self.embed_dim, lora_rank, bias=False)
+        self.adaptor_lora_wk_l2 = torch.nn.Linear(lora_rank, self.embed_dim, bias=False)
+
+        self.adaptor_lora_wv_l1 = torch.nn.Linear(self.embed_dim, lora_rank, bias=False)
+        self.adaptor_lora_wv_l2 = torch.nn.Linear(lora_rank, self.embed_dim, bias=False)
+
+        # self.adaptor_lora_wo_l1 = torch.nn.Linear(self.embed_dim, lora_rank, bias=False)
+        # self.adaptor_lora_wo_l2 = torch.nn.Linear(lora_rank, self.embed_dim, bias=False)
+
+        nn.init.normal_(self.adaptor_lora_wq_l1.weight.data, 0, std=0.2)
+        # nn.init.normal_(self.adaptor_lora_wk_l1.weight.data, 0, std=0.2)
+        # nn.init.normal_(self.adaptor_lora_wv_l1.weight.data, 0, std=0.2)
+        # nn.init.normal_(self.adaptor_lora_wo_l1.weight.data, 0, std=0.2)
+        self.lora_scaling = lora_a / lora_rank
+
+        nn.init.constant_(self.adaptor_lora_wq_l2.weight.data, 0)
+        # nn.init.constant_(self.adaptor_lora_wk_l2.weight.data, 0)
+        # nn.init.constant_(self.adaptor_lora_wv_l2.weight.data, 0)
+        # nn.init.constant_(self.adaptor_lora_wo_l2.weight.data, 0)
+        self.adaptor_lora_dropout = torch.nn.Dropout(lora_drop)
+
+        # self.pre_adaptor_lora_wq_l1 = torch.nn.Linear(self.embed_dim, lora_rank, bias=False)
+        # self.pre_adaptor_lora_wq_l2 = torch.nn.Linear(lora_rank, self.embed_dim, bias=False)
+        # nn.init.normal_(self.pre_adaptor_lora_wq_l1.weight.data, 0, std=0.2)
+        # nn.init.constant_(self.pre_adaptor_lora_wq_l2.weight.data, 0)
+        # self.pre_adaptor_lora_dropout = torch.nn.Dropout(lora_drop)
+        self.idx = idx
+
+    def init_lora(self, lora_rank, lora_drop, lora_a):
+        self.w_lora = True
+        self.lora_wq_l1 = torch.nn.Linear(self.embed_dim, lora_rank, bias=False)
+        self.lora_wq_l2 = torch.nn.Linear(lora_rank, self.embed_dim, bias=False)
+
+        self.lora_wk_l1 = torch.nn.Linear(self.embed_dim, lora_rank, bias=False)
+        self.lora_wk_l2 = torch.nn.Linear(lora_rank, self.embed_dim, bias=False)
+
+        self.lora_wv_l1 = torch.nn.Linear(self.embed_dim, lora_rank, bias=False)
+        self.lora_wv_l2 = torch.nn.Linear(lora_rank, self.embed_dim, bias=False)
+
+        self.lora_wo_l1 = torch.nn.Linear(self.embed_dim, lora_rank, bias=False)
+        self.lora_wo_l2 = torch.nn.Linear(lora_rank, self.embed_dim, bias=False)
+
+        nn.init.normal_(self.lora_wq_l1.weight.data, 0, std=0.2)
+        nn.init.normal_(self.lora_wk_l1.weight.data, 0, std=0.2)
+        nn.init.normal_(self.lora_wv_l1.weight.data, 0, std=0.2)
+        nn.init.normal_(self.lora_wo_l1.weight.data, 0, std=0.2)
+        self.lora_scaling = lora_a / lora_rank
+
+        nn.init.constant_(self.lora_wq_l2.weight.data, 0)
+        nn.init.constant_(self.lora_wk_l2.weight.data, 0)
+        nn.init.constant_(self.lora_wv_l2.weight.data, 0)
+        nn.init.constant_(self.lora_wo_l2.weight.data, 0)
+        self.lora_dropout = torch.nn.Dropout(lora_drop)
+
     def _shape(self, tensor: torch.Tensor, seq_len: int, bsz: int):
         return (
             tensor.view(bsz, seq_len, self.num_heads, self.head_dim)
@@ -330,45 +398,47 @@ class XGLMAttention(nn.Module):
         attention_mask: Optional[torch.Tensor] = None,
         layer_head_mask: Optional[torch.Tensor] = None,
         output_attentions: bool = False,
+        inputs_adaptors: Optional[torch.Tensor] = None,
+        adaptor_mask: Optional[torch.Tensor] = None,
+        ln: Optional[nn.Module] = None,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
         """Input shape: Batch x Time x Channel"""
-
-        # if key_value_states are provided this layer is used as a cross-attention layer
-        # for the decoder
-        is_cross_attention = key_value_states is not None
-
         bsz, tgt_len, _ = hidden_states.size()
 
         # get query proj
-        query_states = self.q_proj(hidden_states) * self.scaling
-        # get key, value proj
-        if is_cross_attention and past_key_value is not None:
-            # reuse k,v, cross_attentions
-            key_states = past_key_value[0]
-            value_states = past_key_value[1]
-        elif is_cross_attention:
-            # cross_attentions
-            key_states = self._shape(self.k_proj(key_value_states), -1, bsz)
-            value_states = self._shape(self.v_proj(key_value_states), -1, bsz)
-        elif past_key_value is not None:
-            # reuse k, v, self_attention
-            key_states = self._shape(self.k_proj(hidden_states), -1, bsz)
-            value_states = self._shape(self.v_proj(hidden_states), -1, bsz)
-            key_states = torch.cat([past_key_value[0], key_states], dim=2)
-            value_states = torch.cat([past_key_value[1], value_states], dim=2)
+        if self.w_lora:
+            query_states = (
+                self.q_proj(hidden_states)
+                + (
+                    self.lora_wq_l2(self.lora_wq_l1(self.lora_dropout(hidden_states)))
+                    * self.lora_scaling
+                )
+            ) * self.scaling
+
+            key_states = self._shape(
+                self.k_proj(hidden_states)
+                + (
+                    self.lora_wk_l2(self.lora_wk_l1(self.lora_dropout(hidden_states)))
+                    * self.lora_scaling
+                ),
+                -1,
+                bsz,
+            )
+            value_states = self._shape(
+                self.v_proj(hidden_states)
+                + (
+                    self.lora_wv_l2(self.lora_wv_l1(self.lora_dropout(hidden_states)))
+                    * self.lora_scaling
+                ),
+                -1,
+                bsz,
+            )
         else:
-            # self_attention
+            query_states = self.q_proj(hidden_states) * self.scaling
             key_states = self._shape(self.k_proj(hidden_states), -1, bsz)
             value_states = self._shape(self.v_proj(hidden_states), -1, bsz)
 
         if self.is_decoder:
-            # if cross_attention save Tuple(torch.Tensor, torch.Tensor) of all cross attention key/value_states.
-            # Further calls to cross_attention layer can then reuse all cross-attention
-            # key/value_states (first "if" case)
-            # if uni-directional self-attention (decoder) save Tuple(torch.Tensor, torch.Tensor) of
-            # all previous decoder key/value_states. Further calls to uni-directional self-attention
-            # can concat previous decoder key/value_states to current projected key/value_states (third "elif" case)
-            # if encoder bi-directional self-attention `past_key_value` is always `None`
             past_key_value = (key_states, value_states)
 
         proj_shape = (bsz * self.num_heads, -1, self.head_dim)
@@ -378,12 +448,6 @@ class XGLMAttention(nn.Module):
 
         src_len = key_states.size(1)
         attn_weights = torch.bmm(query_states, key_states.transpose(1, 2))
-
-        if attn_weights.size() != (bsz * self.num_heads, tgt_len, src_len):
-            raise ValueError(
-                f"Attention weights should be of size {(bsz * self.num_heads, tgt_len, src_len)}, but is"
-                f" {attn_weights.size()}"
-            )
 
         if attention_mask is not None:
             if attention_mask.size() != (bsz, 1, tgt_len, src_len):
@@ -438,6 +502,133 @@ class XGLMAttention(nn.Module):
 
         attn_output = torch.bmm(attn_probs, value_states)
 
+        if self.w_gate:
+            if len(inputs_adaptors.shape) == 4:
+                inputs_adaptors = inputs_adaptors[:, self.idx]
+            inputs_adaptors = ln(
+                inputs_adaptors
+            )  # + self.pre_adaptor_lora_wq_l2(self.pre_adaptor_lora_wq_l1(self.pre_adaptor_lora_dropout(inputs_adaptors))))
+            # ----------------------------------------------------------------
+            adaptor_bsz, adaptor_tgt_len, _ = inputs_adaptors.size()
+
+            # get query proj
+            if self.w_lora:
+                original_query_states = (
+                    self.q_proj(hidden_states)
+                    + (
+                        self.adaptor_lora_wq_l2(
+                            self.adaptor_lora_wq_l1(
+                                self.adaptor_lora_dropout(hidden_states)
+                            )
+                        )
+                        * self.lora_scaling
+                    )
+                ) * self.scaling
+
+                adaptor_key_states = self._shape(
+                    self.k_proj(inputs_adaptors)  # ,
+                    + (
+                        self.adaptor_lora_wk_l2(
+                            self.adaptor_lora_wk_l1(
+                                self.adaptor_lora_dropout(inputs_adaptors)
+                            )
+                        )
+                        * self.lora_scaling
+                    ),
+                    -1,
+                    adaptor_bsz,
+                )
+                adaptor_value_states = self._shape(
+                    self.v_proj(inputs_adaptors)  # ,
+                    + (
+                        self.adaptor_lora_wv_l2(
+                            self.adaptor_lora_wv_l1(
+                                self.adaptor_lora_dropout(inputs_adaptors)
+                            )
+                        )
+                        * self.lora_scaling
+                    ),
+                    -1,
+                    adaptor_bsz,
+                )
+            else:
+                original_query_states = self.q_proj(hidden_states) * self.scaling
+                adaptor_key_states = self._shape(
+                    self.k_proj(inputs_adaptors), -1, adaptor_bsz
+                )
+                adaptor_value_states = self._shape(
+                    self.v_proj(inputs_adaptors), -1, adaptor_bsz
+                )
+
+            if self.is_decoder:
+                past_key_value = (key_states, value_states)
+            # adaptor_bsz, adaptor_tgt_len
+            proj_shape = (adaptor_bsz * self.num_heads, -1, self.head_dim)
+            original_query_states = self._shape(
+                original_query_states, tgt_len, bsz
+            ).view(*proj_shape)
+            adaptor_key_states = adaptor_key_states.view(*proj_shape)
+            adaptor_value_states = adaptor_value_states.view(*proj_shape)
+
+            adaptor_src_len = adaptor_key_states.size(1)
+            adaptor_attn_weights = torch.bmm(
+                original_query_states, adaptor_key_states.transpose(1, 2)
+            )
+
+            if adaptor_mask is not None:
+                adaptor_mask = adaptor_mask[:, None, None, :].to(
+                    adaptor_attn_weights.dtype
+                )
+                adaptor_mask = (1.0 - adaptor_mask) * torch.finfo(
+                    adaptor_attn_weights.dtype
+                ).min
+                # if adaptor_mask.size() != (bsz, 1, tgt_len, adaptor_src_len):
+                #     raise ValueError(
+                #         f"Attention mask should be of size {(bsz, 1, tgt_len, adaptor_src_len)}, but is {attention_mask.size()}"
+                #     )
+                adaptor_attn_weights = (
+                    adaptor_attn_weights.view(
+                        bsz, self.num_heads, tgt_len, adaptor_src_len
+                    )
+                    + adaptor_mask
+                )
+                adaptor_attn_weights = torch.max(
+                    adaptor_attn_weights,
+                    torch.tensor(torch.finfo(adaptor_attn_weights.dtype).min),
+                )
+                adaptor_attn_weights = adaptor_attn_weights.view(
+                    bsz * self.num_heads, tgt_len, adaptor_src_len
+                )
+
+            if adaptor_attn_weights.dtype == torch.float16:
+                adaptor_attn_weights = nn.functional.softmax(
+                    adaptor_attn_weights, dim=-1, dtype=torch.float32
+                ).to(torch.float16)
+            else:
+                adaptor_attn_weights = nn.functional.softmax(
+                    adaptor_attn_weights, dim=-1
+                )
+
+            adaptor_attn_probs = nn.functional.dropout(
+                adaptor_attn_weights, p=self.dropout, training=self.training
+            )
+            # ADD GATE
+            if self.gate_type == "tanh":
+                gate = (self.adaptor_gate).tanh()
+            elif self.gate_type == "clamp":
+                gate = Clamp.apply(self.adaptor_gate)
+            adaptor_attn_output = torch.bmm(
+                (
+                    gate
+                    * adaptor_attn_probs.view(
+                        bsz, self.num_heads, tgt_len, adaptor_src_len
+                    )
+                ).view(bsz * self.num_heads, tgt_len, adaptor_src_len),
+                adaptor_value_states,
+            )
+            attn_output = attn_output + adaptor_attn_output
+            # ----------------------------------------------------------------
+
         if attn_output.size() != (bsz * self.num_heads, tgt_len, self.head_dim):
             raise ValueError(
                 f"`attn_output` should be of size {(bsz, self.num_heads, tgt_len, self.head_dim)}, but is"
@@ -450,8 +641,12 @@ class XGLMAttention(nn.Module):
         # Use the `embed_dim` from the config (stored in the class) rather than `hidden_state` because `attn_output` can be
         # partitioned aross GPUs when using tensor-parallelism.
         attn_output = attn_output.reshape(bsz, tgt_len, self.embed_dim)
-
-        attn_output = self.out_proj(attn_output)
+        if self.w_lora:
+            attn_output = self.out_proj(attn_output) + self.lora_wo_l2(
+                self.lora_wo_l1(attn_output)
+            )
+        else:
+            attn_output = self.out_proj(attn_output)
 
         return attn_output, attn_weights_reshaped, past_key_value
 
@@ -484,6 +679,33 @@ class XGLMDecoderLayer(nn.Module):
         self.fc1 = nn.Linear(self.embed_dim, config.ffn_dim)
         self.fc2 = nn.Linear(config.ffn_dim, self.embed_dim)
         self.final_layer_norm = nn.LayerNorm(self.embed_dim)
+        # -----------------------------------------------------------------------------
+        self.w_lora_ff = False
+        self.config = config
+        # -----------------------------------------------------------------------------
+
+    def init_layer_adaptor(self, gate_type, lora_rank, lora_drop, idx, lora_a):
+        self.self_attn.init_adaptor_gate(gate_type, lora_rank, lora_drop, idx, lora_a)
+
+    def init_layer_lora(self, w_lora_ff, lora_rank, lora_drop, lora_a):
+        self.w_lora_ff = w_lora_ff
+        self.self_attn.init_lora(lora_rank, lora_drop, lora_a)
+
+        if self.w_lora_ff:
+            self.lora_w1_l1 = torch.nn.Linear(self.embed_dim, lora_rank, bias=False)
+            self.lora_w1_l2 = torch.nn.Linear(
+                lora_rank, self.config.ffn_dim, bias=False
+            )
+            self.lora_w2_l1 = torch.nn.Linear(
+                self.config.ffn_dim, lora_rank, bias=False
+            )
+            self.lora_w2_l2 = torch.nn.Linear(lora_rank, self.embed_dim, bias=False)
+            self.lora_scaling = lora_a / lora_rank
+            nn.init.normal_(self.lora_w1_l1.weight.data, 0, std=0.2)
+            nn.init.normal_(self.lora_w2_l1.weight.data, 0, std=0.2)
+            nn.init.constant_(self.lora_w1_l2.weight.data, 0)
+            nn.init.constant_(self.lora_w2_l2.weight.data, 0)
+            self.lora_drop = torch.nn.Dropout(lora_drop)
 
     # Copied from transformers.models.mbart.modeling_mbart.MBartDecoderLayer.forward
     def forward(
@@ -496,7 +718,9 @@ class XGLMDecoderLayer(nn.Module):
         cross_attn_layer_head_mask: Optional[torch.Tensor] = None,
         past_key_value: Optional[Tuple[torch.Tensor]] = None,
         output_attentions: Optional[bool] = False,
-        use_cache: Optional[bool] = True,
+        use_cache: Optional[bool] = False,
+        inputs_adaptors: Optional[torch.Tensor] = None,
+        adaptor_mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -531,6 +755,9 @@ class XGLMDecoderLayer(nn.Module):
             attention_mask=attention_mask,
             layer_head_mask=layer_head_mask,
             output_attentions=output_attentions,
+            inputs_adaptors=inputs_adaptors,
+            adaptor_mask=adaptor_mask,
+            ln=self.self_attn_layer_norm,
         )
         hidden_states = nn.functional.dropout(
             hidden_states, p=self.dropout, training=self.training
@@ -571,11 +798,29 @@ class XGLMDecoderLayer(nn.Module):
         # Fully Connected
         residual = hidden_states
         hidden_states = self.final_layer_norm(hidden_states)
-        hidden_states = self.activation_fn(self.fc1(hidden_states))
-        hidden_states = nn.functional.dropout(
-            hidden_states, p=self.activation_dropout, training=self.training
-        )
-        hidden_states = self.fc2(hidden_states)
+        # ----------------------------------------------------------------
+        if self.w_lora_ff:
+            hidden_states = self.activation_fn(
+                self.fc1(hidden_states)
+                + (
+                    self.lora_w1_l2(self.lora_w1_l1(self.lora_drop(hidden_states)))
+                    * self.lora_scaling
+                )
+            )
+            hidden_states = nn.functional.dropout(
+                hidden_states, p=self.activation_dropout, training=self.training
+            )
+            hidden_states = self.fc2(hidden_states) + (
+                self.lora_w2_l2(self.lora_w2_l1(self.lora_drop(hidden_states)))
+                * self.lora_scaling
+            )
+        # ----------------------------------------------------------------
+        else:
+            hidden_states = self.activation_fn(self.fc1(hidden_states))
+            hidden_states = nn.functional.dropout(
+                hidden_states, p=self.activation_dropout, training=self.training
+            )
+            hidden_states = self.fc2(hidden_states)
         hidden_states = nn.functional.dropout(
             hidden_states, p=self.dropout, training=self.training
         )
@@ -654,6 +899,45 @@ class XGLMModel(XGLMPreTrainedModel):
         self.gradient_checkpointing = False
         # Initialize weights and apply final processing
         self.post_init()
+        self.embed_dim = config.d_model
+        self.vocab_size = config.vocab_size
+
+    def init_adaptor(
+        self,
+        adapt_layers,
+        lora_layers,
+        w_lora_ff,
+        lora_rank,
+        lora_drop,
+        gate_type,
+        lora_a,
+        adapt_tokens=False,
+    ):
+        self.lora_rank = lora_rank
+        self.adapt_layers = adapt_layers
+        self.lora_layers = lora_layers
+        self.w_lora_ff = w_lora_ff
+        self.lora_drop = lora_drop
+        self.gate_type = gate_type
+        counter_adaptors = 0
+        for idx, layer in enumerate(self.layers):
+            if idx in self.adapt_layers:
+                layer.init_layer_adaptor(
+                    gate_type, lora_rank, lora_drop, counter_adaptors, lora_a
+                )
+                counter_adaptors += 1
+            if idx in self.lora_layers:
+                layer.init_layer_lora(w_lora_ff, lora_rank, lora_drop, lora_a)
+
+        self.adapt_tokens = adapt_tokens
+        if self.adapt_tokens:
+            # self.start_token_adaption = torch.nn.Parameter(torch.zeros(1,self.embed_dim))
+            self.lora_w1_l1 = torch.nn.Linear(self.embed_dim, lora_rank, bias=False)
+            self.lora_w1_l2 = torch.nn.Linear(lora_rank, self.embed_dim, bias=False)
+            self.lora_scaling = lora_a / lora_rank
+            nn.init.normal_(self.lora_w1_l1.weight.data, 0, std=0.1)
+            nn.init.constant_(self.lora_w1_l2.weight.data, 0)
+            self.lora_drop = torch.nn.Dropout(lora_drop)
 
     def get_input_embeddings(self):
         return self.embed_tokens
@@ -684,8 +968,8 @@ class XGLMModel(XGLMPreTrainedModel):
                 if combined_attention_mask is None
                 else expanded_attn_mask + combined_attention_mask
             )
-
-        return combined_attention_mask
+        # return combined_attention_mask
+        return torch.nan_to_num(combined_attention_mask)
 
     @add_start_docstrings_to_model_forward(XGLM_INPUTS_DOCSTRING)
     @add_code_sample_docstrings(
@@ -707,6 +991,10 @@ class XGLMModel(XGLMPreTrainedModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
+        # ---------------------------------------------------------------
+        inputs_adaptors: Optional[torch.Tensor] = None,
+        adaptor_mask: Optional[torch.Tensor] = None,
+        # ---------------------------------------------------------------
     ) -> Union[Tuple[torch.Tensor], BaseModelOutputWithPastAndCrossAttentions]:
         r"""
         Args:
@@ -782,7 +1070,9 @@ class XGLMModel(XGLMPreTrainedModel):
             if output_hidden_states is not None
             else self.config.output_hidden_states
         )
-        use_cache = use_cache if use_cache is not None else self.config.use_cache
+        use_cache = (
+            False  #  use_cache if use_cache is not None else self.config.use_cache
+        )
         return_dict = (
             return_dict if return_dict is not None else self.config.use_return_dict
         )
@@ -806,7 +1096,17 @@ class XGLMModel(XGLMPreTrainedModel):
         )
 
         if inputs_embeds is None:
-            inputs_embeds = self.embed_tokens(input_ids) * self.embed_scale
+            if self.adapt_tokens:
+                inputs_embeds = self.embed_tokens(input_ids)
+                # inputs_embeds[:,0,:] = inputs_embeds[:,0,:]+self.start_token_adaption
+
+                inputs_embeds += (
+                    self.lora_w1_l2(self.lora_w1_l1(self.lora_drop(inputs_embeds)))
+                    * self.lora_scaling
+                )
+                inputs_embeds = inputs_embeds * self.embed_scale
+            else:
+                inputs_embeds = self.embed_tokens(input_ids) * self.embed_scale
 
         attention_mask = self._prepare_decoder_attention_mask(
             attention_mask, input_shape, inputs_embeds, past_key_values_length
@@ -904,6 +1204,8 @@ class XGLMModel(XGLMPreTrainedModel):
                     past_key_value=past_key_value,
                     output_attentions=output_attentions,
                     use_cache=use_cache,
+                    inputs_adaptors=inputs_adaptors,
+                    adaptor_mask=adaptor_mask,
                 )
             hidden_states = layer_outputs[0]
 
@@ -966,9 +1268,40 @@ class XGLMForCausalLM(XGLMPreTrainedModel):
         super().__init__(config)
         self.model = XGLMModel(config)
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
-
+        self.embed_dim = config.hidden_size
         # Initialize weights and apply final processing
         self.post_init()
+        if torch.cuda.is_bf16_supported():
+            self.to(torch.bfloat16)
+        # else:
+        #     self.to(torch.float16)
+
+    def init_adaptor(
+        self,
+        adapt_layers=[],
+        lora_layers=[],
+        w_lora_ff=False,
+        lora_rank=16,
+        lora_drop=0.0,
+        gate_type=None,
+        lora_a=1.0,
+        adapt_tokens=False,
+    ):
+        self.lora_rank = lora_rank
+        self.adapt_layers = adapt_layers
+        self.lora_layers = lora_layers
+        self.w_lora_ff = w_lora_ff
+        self.gate_type = gate_type
+        self.model.init_adaptor(
+            adapt_layers,
+            lora_layers,
+            w_lora_ff,
+            lora_rank,
+            lora_drop,
+            gate_type,
+            lora_a,
+            adapt_tokens,
+        )
 
     def get_input_embeddings(self):
         return self.model.embed_tokens
@@ -1003,6 +1336,10 @@ class XGLMForCausalLM(XGLMPreTrainedModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
+        # -----------------------------------------------------------------------------
+        inputs_adaptors: Optional[torch.FloatTensor] = None,
+        adaptor_mask: Optional[torch.FloatTensor] = None,
+        # -----------------------------------------------------------------------------
     ) -> Union[Tuple[torch.Tensor], CausalLMOutputWithCrossAttentions]:
         r"""
         labels (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):
@@ -1035,10 +1372,12 @@ class XGLMForCausalLM(XGLMPreTrainedModel):
             cross_attn_head_mask=cross_attn_head_mask,
             past_key_values=past_key_values,
             inputs_embeds=inputs_embeds,
-            use_cache=use_cache,
+            use_cache=False,  # use_cache,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
+            inputs_adaptors=inputs_adaptors,
+            adaptor_mask=adaptor_mask,
         )
 
         logits = self.lm_head(outputs[0])
@@ -1085,9 +1424,11 @@ class XGLMForCausalLM(XGLMPreTrainedModel):
         # first step, decoder_cached_states are empty
         return {
             "input_ids": input_ids,  # encoder_outputs is defined. input_ids not needed
-            "attention_mask": attention_mask,
+            "attention_mask": attention_mask.bool(),
             "past_key_values": past_key_values,
-            "use_cache": use_cache,
+            "use_cache": False,
+            "inputs_adaptors": kwargs.get("inputs_adaptors"),
+            "adaptor_mask": kwargs.get("adaptor_mask"),
         }
 
     @staticmethod
