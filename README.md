@@ -2,7 +2,9 @@
 
 Implementation of Sign2GPT.
 
-[27/09/2024] Added embedding layers
+[03/09/2024] Added decoder with adaptors
+
+[27/08/2024] Added embedding layers
 
 [20/08/2024] Added pretraining head component
 
