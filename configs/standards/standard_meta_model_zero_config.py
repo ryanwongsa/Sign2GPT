@@ -78,3 +78,29 @@ def get_proto_head_params():
         "emb_pkl_dir": f"data/phoenix2014t/processed_words.phx_pkl",
         "trainable_emb": True,
     }
+
+def get_decoder_adaptor_params():
+    adaptor_params: {
+        "adapt_layers": list(np.arange(0, 24, 1)),
+        "lora_layers": list(np.arange(0, 24, 1)),
+        "w_lora_ff": False,
+        "lora_rank": 4,
+        "lora_drop": 0.1,
+        "gate_type": "clamp",
+        "lora_a": 4.0,
+        "adapt_tokens": False,
+    }
+    # TODO: UPDATE THIS TO REFECT WITHIN MODEL
+    # EXAMPLE BELOW TO INITIALISE LLM
+    # lm_name = "facebook/xglm-564M"
+    # additional_tokens = {
+    #     "eos_token": ".",
+    # }
+    # pretext = ""
+    # new_token_length = None
+    # lang_model = XGLMForCausalLM.from_pretrained(llm_name)
+    # if new_token_length is not None:
+    #         lang_model.resize_token_embeddings(new_token_length)
+    #     for name, param in lang_model.named_parameters():
+    #         param.requires_grad = False
+    #     lang_model.init_adaptor(**adaptor_params)
