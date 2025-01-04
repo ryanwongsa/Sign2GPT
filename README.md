@@ -2,6 +2,8 @@
 
 Implementation of Sign2GPT.
 
+[04/01/2025] Merged and added the model setup, with evaluation metrics used. 
+
 [03/09/2024] Added decoder with adaptors
 
 [27/08/2024] Added embedding layers
