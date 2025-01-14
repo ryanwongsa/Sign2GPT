@@ -1,6 +1,20 @@
 # Sign2GPT: Leveraging Large Language Models for Gloss-Free Sign Language Translation
 
-Implementation of Sign2GPT.
+Implementation of Sign2GPT. 
+
+The code is currently being updated, so far the model and loss function has been uploaded, therefore it is possible to use the model and loss function in any custom training setup. If you have any questions, submit an issue in this repo and I will be happy to help.
+
+# TODO
+
+[x] Model 
+[x] Pseudo-gloss Loss function
+[x] Evaluation Metrics
+[ ] Pseudo-gloss generation script
+[ ] Pseudo-gloss pretraining script
+[ ] Downstream training script
+[ ] Evaluation
+
+# CHANELOGS
 
 [04/01/2025] Merged and added the model setup, with evaluation metrics used. 
 
