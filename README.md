@@ -6,6 +6,7 @@ The code is currently being updated, so far the model and loss function has been
 
 # TODO
 
+```
 [x] Model 
 [x] Pseudo-gloss Loss function
 [x] Evaluation Metrics
@@ -13,6 +14,7 @@ The code is currently being updated, so far the model and loss function has been
 [ ] Pseudo-gloss pretraining script
 [ ] Downstream training script
 [ ] Evaluation
+```
 
 # CHANELOGS
 
