@@ -2,7 +2,7 @@
 
 Implementation of Sign2GPT. 
 
-The code is currently being updated, so far the model and loss function has been uploaded, therefore it is possible to use the model and loss function in any custom training setup. If you have any questions, submit an issue in this repo and I will be happy to help.
+The code is currently being updated, the model and loss function has already been uploaded, therefore it is possible to use the model and loss function in any custom training setup in pytorch. If you have any questions, submit an issue in this repo and I will be happy to help.
 
 # TODO
 
@@ -10,7 +10,7 @@ The code is currently being updated, so far the model and loss function has been
 [x] Model 
 [x] Pseudo-gloss Loss function
 [x] Evaluation Metrics
-[ ] Pseudo-gloss generation script
+[x] Pseudo-gloss generation script
 [ ] Pseudo-gloss pretraining script
 [ ] Downstream training script
 [ ] Evaluation
