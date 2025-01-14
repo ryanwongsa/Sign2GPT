@@ -18,6 +18,8 @@ The code is currently being updated, the model and loss function has already bee
 
 # CHANELOGS
 
+[14/01/2025] Added Pseudo-gloss generation scripts
+
 [04/01/2025] Merged and added the model setup, with evaluation metrics used. 
 
 [03/09/2024] Added decoder with adaptors
