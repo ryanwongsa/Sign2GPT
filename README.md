@@ -11,13 +11,15 @@ The code is currently being updated, the model and loss function has already bee
 [x] Pseudo-gloss Loss function
 [x] Evaluation Metrics
 [x] Pseudo-gloss generation script
-[ ] Dataloader
+[x] Dataloader
 [ ] Pseudo-gloss pretraining script
 [ ] Downstream training script
 [ ] Evaluation
 ```
 
 # CHANGELOGS
+
+[15/01/2025] Added Dataloader for csldaily
 
 [14/01/2025] Added Pseudo-gloss generation scripts
 
