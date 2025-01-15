@@ -11,6 +11,7 @@ The code is currently being updated, the model and loss function has already bee
 [x] Pseudo-gloss Loss function
 [x] Evaluation Metrics
 [x] Pseudo-gloss generation script
+[ ] Dataloader
 [ ] Pseudo-gloss pretraining script
 [ ] Downstream training script
 [ ] Evaluation
