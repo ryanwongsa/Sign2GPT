@@ -17,7 +17,7 @@ The code is currently being updated, the model and loss function has already bee
 [ ] Evaluation
 ```
 
-# CHANELOGS
+# CHANGELOGS
 
 [14/01/2025] Added Pseudo-gloss generation scripts
 
