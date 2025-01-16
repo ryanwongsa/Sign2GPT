@@ -43,3 +43,12 @@ The code is currently being updated, the model and loss function has already bee
 [25/05/2024] Added sign encoder model architecture setup.
 
 [07/04/2024] Created Repo for the paper titled "Sign2GPT: Leveraging Large Language Models for Gloss-Free Sign Language Translation", Work in progress.
+
+Citation
+```
+@inproceedings{wongsign2gpt,
+  title={Sign2GPT: Leveraging Large Language Models for Gloss-Free Sign Language Translation},
+  author={Wong, Ryan and Camgoz, Necati Cihan and Bowden, Richard},
+  booktitle={The Twelfth International Conference on Learning Representations}
+}
+```
