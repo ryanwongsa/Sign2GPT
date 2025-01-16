@@ -44,7 +44,7 @@ The code is currently being updated, the model and loss function has already bee
 
 [07/04/2024] Created Repo for the paper titled "Sign2GPT: Leveraging Large Language Models for Gloss-Free Sign Language Translation", Work in progress.
 
-Citation
+# Citation
 ```
 @inproceedings{wongsign2gpt,
   title={Sign2GPT: Leveraging Large Language Models for Gloss-Free Sign Language Translation},
