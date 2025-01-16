@@ -19,6 +19,9 @@ The code is currently being updated, the model and loss function has already bee
 
 # CHANGELOGS
 
+
+[16/01/2025] Added Template training code base
+
 [15/01/2025] Added Dataloader for csldaily
 
 [14/01/2025] Added Pseudo-gloss generation scripts
