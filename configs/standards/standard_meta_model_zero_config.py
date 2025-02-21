@@ -64,7 +64,8 @@ def get_sign_encoder():
     }
     return model_name, sign_model_params, dim_model
 
-def get_proto_head_params():
+def get_proto_head_params(dim_model):
+    post_name = "models.metaformer.post.zero_fasttext_prototype_head"
     post_params = {
         "in_dim": dim_model,
         "hidden_dim": 300,
@@ -78,9 +79,10 @@ def get_proto_head_params():
         "emb_pkl_dir": f"data/phoenix2014t/processed_words.phx_pkl",
         "trainable_emb": True,
     }
+    return post_name, post_params
 
 def get_decoder_adaptor_params():
-    adaptor_params: {
+    adaptor_params= {
         "adapt_layers": list(np.arange(0, 24, 1)),
         "lora_layers": list(np.arange(0, 24, 1)),
         "w_lora_ff": False,

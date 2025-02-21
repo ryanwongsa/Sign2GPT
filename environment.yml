@@ -1,0 +1,28 @@
+channels:
+  - pytorch
+  - defaults
+dependencies:
+  - pip:
+    - albumentations==1.4.13
+    - numpy==1.24.4
+    - pandas==2.0.1
+    - transformers==4.31.0
+    - lmdb==1.2.1
+    - timm==0.9.16
+    - requests
+    - wandb==0.14.0
+    - ml-collections==0.1.1
+    - pytorch-ignite==0.4.13
+    - Pillow==9.0.1
+    - matplotlib
+    - nlpaug==1.1.11
+    - nltk==3.6.7
+    - fastText==0.9.2
+    - sentencepiece==0.1.99
+    - hsemotion==0.3.0
+    - diffusers==0.26.3
+    - einops==0.8.0
+    - mediapipe==0.10.5
+    - onnxscript
+    - albucore==0.0.13
+    #- opencv-contrib-python==4.5.4.60
