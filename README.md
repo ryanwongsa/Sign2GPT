@@ -2,6 +2,10 @@
 
 This repo is the official implementation of "Sign2GPT: Leveraging Large Language Models for Gloss-Free Sign Language Translation".
 
+## Environment Setup
+
+Build the Docker image using the `Dockerfile` and `environment.yml` files provided.
+
 ## Dataset Preparation
 
 Request access for CSL-Daily from the authors of "Improving Sign Language Translation with Monolingual Data by Sign Back-Translation" (Zhou et al.) and add it to folder named `csldaily`.
