@@ -1,54 +1,29 @@
 # Sign2GPT: Leveraging Large Language Models for Gloss-Free Sign Language Translation
 
-Implementation of Sign2GPT. 
+This repo is the official implementation of "Sign2GPT: Leveraging Large Language Models for Gloss-Free Sign Language Translation".
 
-The code is currently being updated, the model and loss function has already been uploaded, therefore it is possible to use the model and loss function in any custom training setup in pytorch. If you have any questions, submit an issue in this repo and I will be happy to help.
+## Dataset Preparation
 
-# TODO
+Request access for CSL-Daily from the authors of "Improving Sign Language Translation with Monolingual Data by Sign Back-Translation" (Zhou et al.) and add it to folder named `csldaily`.
 
-```
-[x] Model 
-[x] Pseudo-gloss Loss function
-[x] Evaluation Metrics
-[x] Pseudo-gloss generation script
-[x] Dataloader
-[ ] Pseudo-gloss pretraining script
-[ ] Downstream training script
-[ ] Evaluation
-```
+1. Create the tsv file for easier reading of the dataset using `scripts/csldaily/tsv_processing.py`
 
-# CHANGELOGS
+2. Since the dataset is divided into frames, using the script `scripts/csldaily/video_creator.py` to convert the individual frames to videos which are saved in `dataset_creation/csl-daily` folder. You will need to do this for every sequence in the dataset.
+
+3. Convert the videos into lmdbs using `scripts/csldaily/image_lmdb_creator.py`. You will need to do this for every video in the dataset.
+
+4. Create the pseudo-gloss dictionary pickle file with `scripts/csldaily/pseudo_gloss_zn.py`
 
 
-[16/01/2025] Added Template training code base
-
-[15/01/2025] Added Dataloader for csldaily
-
-[14/01/2025] Added Pseudo-gloss generation scripts
-
-[04/01/2025] Merged and added the model setup, with evaluation metrics used. 
-
-[03/09/2024] Added decoder with adaptors
-
-[27/08/2024] Added embedding layers
-
-[20/08/2024] Added pretraining head component
-
-[20/08/2024] Added pretraining loss function
-
-[19/07/2024] Added missing transformer encoder modules.
-
-[02/06/2024] Added spatial model architecture setup.
-
-[25/05/2024] Added sign encoder model architecture setup.
-
-[07/04/2024] Created Repo for the paper titled "Sign2GPT: Leveraging Large Language Models for Gloss-Free Sign Language Translation", Work in progress.
 
 # Citation
 ```
-@inproceedings{wongsign2gpt,
-  title={Sign2GPT: Leveraging Large Language Models for Gloss-Free Sign Language Translation},
-  author={Wong, Ryan and Camgoz, Necati Cihan and Bowden, Richard},
-  booktitle={The Twelfth International Conference on Learning Representations}
+@inproceedings{
+  wong2024signgpt,
+  title={Sign2{GPT}: Leveraging Large Language Models for Gloss-Free Sign Language Translation},
+  author={Ryan Wong and Necati Cihan Camgoz and Richard Bowden},
+  booktitle={The Twelfth International Conference on Learning Representations},
+  year={2024},
+  url={https://openreview.net/forum?id=LqaEEs3UxU}
 }
 ```
