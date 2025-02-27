@@ -52,24 +52,24 @@ def get_grouped_params(model, optimizer_params):
 def get_optim(optimizer_name, optimizer_params, model):
     if optimizer_name == "adamw":
         optimizer = torch.optim.AdamW(
-            get_grouped_params(model, optimizer_params, has_gate=False)
+            get_grouped_params(model, optimizer_params)
         )
     elif optimizer_name == "adam":
         optimizer = torch.optim.Adam(
-            get_grouped_params(model, optimizer_params, has_gate=False)
+            get_grouped_params(model, optimizer_params)
         )
     elif optimizer_name == "sgd":
         optimizer = torch.optim.SGD(
-            get_grouped_params(model, optimizer_params, has_gate=False)
+            get_grouped_params(model, optimizer_params)
         )
     elif optimizer_name == "radam":
         optimizer = torch.optim.RAdam(
-            get_grouped_params(model, optimizer_params, has_gate=False)
+            get_grouped_params(model, optimizer_params)
         )
 
     elif optimizer_name == "rmsprop":
         optimizer = torch.optim.RMSprop(
-            get_grouped_params(model, optimizer_params, has_gate=False)
+            get_grouped_params(model, optimizer_params)
         )
     optimizer = idist.auto_optim(optimizer)
     print("MODEL TRAINABLE PARAMETERS:")

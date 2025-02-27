@@ -3,14 +3,13 @@ import socket
 
 
 CONFIG = {
-    "WANDB_API_KEY": <YOUR_WANDB_API_KEY>,
+    "WANDB_API_KEY": "<YOUR_WANDB_API_KEY>",
     "WANDB_IGNORE_GLOBS": "*.patch",
     "WANDB_DISABLE_CODE": "true",
     "TOKENIZERS_PARALLELISM": "false",
     "WANDB_DIR": "/tmp",
     "WANDB_CACHE_DIR": "/tmp",
     "WANDB_CONFIG_DIR": "/tmp",
-    "DISCORD_URL": <DISCORD_WEBHOOK_URL>,
     # "CUDA_LAUNCH_BLOCKING": "1", # ADD IF ISSUES WITH CUDA
     "WANDB_HOST": (
         f"{socket.gethostname()}"

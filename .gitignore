@@ -165,7 +165,7 @@ pretrained/
 *.bin
 *.bin.gz
 notebooks/
-*.png
+# *.png
 *.jpg
 demofile3.txt
 logs/

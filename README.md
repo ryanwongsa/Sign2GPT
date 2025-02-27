@@ -2,6 +2,9 @@
 
 This repo is the official implementation of "Sign2GPT: Leveraging Large Language Models for Gloss-Free Sign Language Translation".
 
+![Sign2GPT](images/overview_sign2gpt.png)
+
+
 ## Environment Setup
 
 Build the Docker image using the `Dockerfile` and `environment.yml` files provided.
@@ -18,7 +21,28 @@ Request access for CSL-Daily from the authors of "Improving Sign Language Transl
 
 4. Create the pseudo-gloss dictionary pickle file with `scripts/csldaily/pseudo_gloss_zn.py`
 
+5. Update the paths in `configs/base/base_utils.py` for `ckpt_path` and `lmdb_path` to your desired checkpoint save location and base path for the lmdb directory.
 
+6. If you plan on using Weights and Biases add the api key to `environment_variables.py` and in the config files set:
+```
+cfg.logger_name = ['wandb']
+```
+
+## Pretraining Stage
+
+Run the pretraining stage:
+```bash
+python main.py --config=configs/csldaily/csldaily_stage1_configs/CSL_example_s1_config.py
+```
+
+## Downstream Training Stage
+
+Run the downstream training stage:
+```bash
+python main.py --config=configs/csldaily/csldaily_stage2_configs/CSL_example_s2_config.py
+```
+
+**NOTE:** By default during training BLEU scores are the teacher forcing scores (`obleu`) every epoch. If you want to get the true BLEU scores (which takes longer) you need to get `ableu` scores which are run every 10 epochs on the validation set.
 
 # Citation
 ```
