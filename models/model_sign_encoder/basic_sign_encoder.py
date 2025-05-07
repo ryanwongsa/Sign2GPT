@@ -28,7 +28,7 @@ class Model(nn.Module):
         frame_features,
         max_len,
     ):
-        x, mask, dict_feat = self.spatial_model(frame_features, max_len=128)
+        x, mask, dict_feat = self.spatial_model(frame_features, max_len=max_len)
         enc_output = self.encoder(x, mask)
         return {
             "enc_output": enc_output,

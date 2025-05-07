@@ -24,10 +24,7 @@ class Trainer(BaseTrainer):
             self.logger = LoggingCallback(self.cfg)
             self.logger.start_logger()
 
-        if cfg.mixup:
-            self.max_length = 128
-        else:
-            self.max_length = 64
+        self.max_length = 128
 
         (
             train_dl,
