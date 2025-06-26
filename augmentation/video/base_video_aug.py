@@ -3,7 +3,7 @@ import numpy as np
 import torch
 import albumentations as A
 from albumentations.pytorch.transforms import ToTensorV2
-from augmentation.utils.unnorm import UnNormalize
+from augmentation.video.utils.unnorm import UnNormalize
 
 
 class Transformation(object):
