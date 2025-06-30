@@ -113,7 +113,7 @@ def get_config():
         "name": "translation",
         "ds_params": {
             "lmdb_video_dir": f"{lmdb_path}/phoenix2014t/lmdb_videos",
-            "isValid": False,
+            "isValid": True,
         },
         "shuffle": False,
         "num_workers": cfg.num_workers,
@@ -129,7 +129,7 @@ def get_config():
         "name": "translation",
         "ds_params": {
             "lmdb_video_dir": f"{lmdb_path}/phoenix2014t/lmdb_videos",
-            "isValid": False,
+            "isValid": True,
         },
         "shuffle": False,
         "num_workers": cfg.num_workers,
